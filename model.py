@@ -1,8 +1,7 @@
 #!/usr/bin/python3/
-import random
+import pickle
 
 import tensorflow as tf
-
 import numpy as np
 import pandas as pd
 from nltk.tokenize import RegexpTokenizer
@@ -10,7 +9,7 @@ from nltk.tokenize import RegexpTokenizer
 # load notes.csv
 text_df = pd.read_csv("notes.csv")
 
- # load just the Notes column and combine all values into a single string
+# load just the Notes column and combine all values into a single string
 text = list(text_df.Notes)
 joined_text = " ".join(text)
 
@@ -70,35 +69,28 @@ model.fit(x,y, batch_size=128, epochs=30, shuffle=True)
 
 # save and load - technically don't need to do this as already in memory
 model.save("notes.keras")
-model = tf.keras.models.load_model("notes.keras")
 
-# given an input text, predict the n_best most likely words
-def predict_next_word(input_text, n_best):
-    input_text = input_text.lower()
-    x = np.zeros((1, n_words, len(unique_tokens)))
-    for i, word in enumerate(input_text.split()):
-        x[0,i,unique_token_index[word]] = 1
+with open("unique_tokens.pkl", "wb") as f:
+    pickle.dump(unique_tokens, f)
 
-    predictions = model.predict(x)[0]
-    return np.argpartition(predictions, -n_best)[-n_best:]
+with open("unique_token_index.pkl", "wb") as f:
+    pickle.dump(unique_token_index, f)
 
-# example of word prediction, given x words give me 5 suggestions
-possible = predict_next_word("Discussed preventative measures and healthy oral cleaning", 5)
-print([unique_tokens[idx] for idx in possible])
+with open("tokenizer.pkl", "wb") as f:
+    pickle.dump(tokenizer, f)
 
-# Given an input text, denerate text_length new words using the traind model. The creativity parameter controls the randomness of the predictions
-def generate_text(input_text, text_length, creativity=3):
-    word_sequence = input_text.split()
-    current = 0
-    for _ in range(text_length):
-        sub_sequence = " ".join(tokenizer.tokenize(" ".join(word_sequence).lower())[current:current+n_words])
-        try:
-            choice = unique_tokens[random.choice(predict_next_word(sub_sequence, creativity))]
-        except:
-            choice = random.choice(unique_tokens)
-        word_sequence.append(choice)
-        current +=1
-    return " ".join(word_sequence)
+def load_model():
+    # Load the trained model
+    model = load_model("notes.keras")
 
-# generate x words and print to console, reduce last value for less creativity
-print(generate_text("Oral cleaning completed. We discussed preventative", 15, 1))
+    # Load other necessary variables
+    with open("unique_tokens.pkl", "rb") as f:
+        unique_tokens = pickle.load(f)
+    with open("unique_token_index.pkl", "rb") as f:
+        unique_token_index = pickle.load(f)
+    with open("tokenizer.pkl", "rb") as f:
+        tokenizer = pickle.load(f)
+
+    n_words = 7  # or whatever value you used during training
+
+    return model, unique_tokens, unique_token_index, tokenizer, n_words
